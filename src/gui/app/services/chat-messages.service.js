@@ -130,7 +130,7 @@
 
             // Chat Alert Message
             service.chatAlertMessage = function(message) {
-                message = $sce.trustAsHtml(marked(message));
+                message = $sce.trustAsHtml(sanitize(marked(message), { ALLOW_UNKNOWN_PROTOCOLS: true }));
 
                 const alertItem = {
                     id: uuid(),
