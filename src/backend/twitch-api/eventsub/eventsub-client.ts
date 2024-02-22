@@ -5,7 +5,7 @@ import logger from "../../logwrapper";
 import accountAccess from "../../common/account-access";
 import frontendCommunicator from "../../common/frontend-communicator";
 import twitchEventsHandler from '../../events/twitch-events';
-import TwitchApi from "../api";
+import twitchApi from "../api";
 import twitchStreamInfoPoll from "../stream-info-manager";
 
 class TwitchEventSubClient {
@@ -47,11 +47,12 @@ class TwitchEventSubClient {
 
         // Cheers
         const bitsSubscription = this._eventSubListener.onChannelCheer(streamer.userId, async (event) => {
-            const totalBits = (await TwitchApi.bits.getChannelBitsLeaderboard(1, "all", new Date(), event.userId))[0]?.amount ?? 0;
+            const totalBits = (await twitchApi.bits.getChannelBitsLeaderboard(1, "all", new Date(), event.userId))[0]?.amount ?? 0;
 
             twitchEventsHandler.cheer.triggerCheer(
-                event.userDisplayName ?? "An Anonymous Cheerer",
+                event.userName,
                 event.userId,
+                event.userDisplayName ?? "An Anonymous Cheerer",
                 event.isAnonymous,
                 event.bits,
                 totalBits,
@@ -62,7 +63,7 @@ class TwitchEventSubClient {
 
         // Channel custom reward
         const customRewardRedemptionSubscription = this._eventSubListener.onChannelRedemptionAdd(streamer.userId, async (event) => {
-            const reward = await TwitchApi.channelRewards.getCustomChannelReward(event.rewardId);
+            const reward = await twitchApi.channelRewards.getCustomChannelReward(event.rewardId);
             let imageUrl = "";
 
             if (reward && reward.defaultImage) {
@@ -92,17 +93,6 @@ class TwitchEventSubClient {
             );
         });
         this._subscriptions.push(customRewardRedemptionSubscription);
-
-        // Raid
-        const raidSubscription = this._eventSubListener.onChannelRaidTo(streamer.userId, (event) => {
-            twitchEventsHandler.raid.triggerRaid(
-                event.raidingBroadcasterName,
-                event.raidingBroadcasterId,
-                event.raidingBroadcasterDisplayName,
-                event.viewers
-            );
-        });
-        this._subscriptions.push(raidSubscription);
 
         // Shoutout sent to another channel
         const shoutoutSentSubscription = this._eventSubListener.onChannelShoutoutCreate(streamer.userId, streamer.userId, (event) => {
@@ -382,6 +372,7 @@ class TwitchEventSubClient {
         });
         this._subscriptions.push(charityCampaignEndSubscription);
 
+        // Channel info update
         const channelUpdateSubscription = this._eventSubListener.onChannelUpdate(streamer.userId, (event) => {
             twitchStreamInfoPoll.updateStreamInfo({
                 categoryId: event.categoryId,
@@ -391,6 +382,76 @@ class TwitchEventSubClient {
             });
         });
         this._subscriptions.push(channelUpdateSubscription);
+
+        // Chat notification
+        // NOTE: This will include MANY of the alerts we were using for chat before
+        const channelChatNotificationSubscription = this._eventSubListener.onChannelChatNotification(streamer.userId, streamer.userId, (event) => {
+            switch (event.type) {
+                case "sub":
+                case "resub":
+                    twitchEventsHandler.sub.triggerSub(
+                        event.chatterName,
+                        event.chatterId,
+                        event.chatterDisplayName,
+                        event.tier,
+                        event.type === "resub" ? event.cumulativeMonths : 1,
+                        event.messageText,
+                        event.type === "resub" ? event.streakMonths : 1,
+                        event.isPrime,
+                        event.type === "resub"
+                    );
+                    break;
+
+                case "prime_paid_upgrade":
+                    twitchEventsHandler.sub.triggerPrimeUpgrade(
+                        event.chatterName,
+                        event.chatterId,
+                        event.chatterDisplayName,
+                        event.tier
+                    );
+                    break;
+
+                case "bits_badge_tier":
+                    twitchEventsHandler.cheer.triggerBitsBadgeUnlock(
+                        event.chatterName,
+                        event.chatterId,
+                        event.chatterDisplayName,
+                        event.messageText,
+                        event.newTier
+                    );
+                    break;
+
+                case "raid":
+                    twitchEventsHandler.raid.triggerRaid(
+                        event.raiderName,
+                        event.raiderId,
+                        event.raiderDisplayName,
+                        event.viewerCount
+                    );
+                    break;
+
+                // Waiting for EventSub parity
+                case "sub_gift":
+                case "gift_paid_upgrade":
+                    break;
+
+                // Reserving
+                case "unraid":
+                case "announcement":
+                case "charity_donation":
+                case "pay_it_forward":
+                    break;
+            }
+        });
+        this._subscriptions.push(channelChatNotificationSubscription);
+
+        // Chat message deleted
+        const channelChatMessageDeletedSubscription = this._eventSubListener.onChannelChatMessageDelete(streamer.userId, streamer.userId, (event) => {
+            twitchEventsHandler.chat.triggerChatMessageDeleted(event.messageId);
+        });
+        this._subscriptions.push(channelChatMessageDeletedSubscription);
+
+        // Chat cleared - waiting for EventSub parity
     }
 
     async createClient(): Promise<void> {
@@ -400,7 +461,7 @@ class TwitchEventSubClient {
 
         try {
             this._eventSubListener = new EventSubWsListener({
-                apiClient: TwitchApi.streamerClient
+                apiClient: twitchApi.streamerClient
             });
 
             this._eventSubListener.start();
@@ -410,7 +471,7 @@ class TwitchEventSubClient {
             logger.info("Connected to the Twitch EventSub!");
 
             // Finally, clear out any subcriptions that are no longer active
-            await TwitchApi.streamerClient.eventSub.deleteBrokenSubscriptions();
+            await twitchApi.streamerClient.eventSub.deleteBrokenSubscriptions();
         } catch (error) {
             logger.error("Failed to connect to Twitch EventSub", error);
             return;

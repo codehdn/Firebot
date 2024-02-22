@@ -450,6 +450,22 @@ module.exports = {
             }
         },
         {
+            id: "chat-cleared",
+            name: "Chat Cleared",
+            description: "When chat has been cleared by either the streamer or a moderator.",
+            cached: false,
+            queued: false,
+            manualMetadata: {
+                moderator: "Firebot"
+            },
+            activityFeed: {
+                icon: "fad fa-eraser",
+                getMessage: (eventData) => {
+                    return `**${eventData.moderator}** has cleared chat.`;
+                }
+            }
+        },
+        {
             id: "channel-poll-begin",
             name: "Channel Poll Started",
             description: "When a channel poll begins on your channel.",

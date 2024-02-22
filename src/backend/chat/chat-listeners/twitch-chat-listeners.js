@@ -98,9 +98,9 @@ exports.setupChatListeners = (streamerChatClient, botChatClient) => {
             timerManager.incrementChatLineCounters();
         }
 
-        twitchEventsHandler.chatMessage.triggerChatMessage(firebotChatMessage);
+        twitchEventsHandler.chat.triggerChatMessage(firebotChatMessage);
         if (firebotChatMessage.isFirstChat) {
-            twitchEventsHandler.chatMessage.triggerFirstTimeChat(firebotChatMessage);
+            twitchEventsHandler.chat.triggerFirstTimeChat(firebotChatMessage);
         }
         await raidMessageChecker.sendMessageToCache(firebotChatMessage);
     });
@@ -135,9 +135,9 @@ exports.setupChatListeners = (streamerChatClient, botChatClient) => {
 
         await activeUserHandler.addActiveUser(msg.userInfo, true);
 
-        twitchEventsHandler.chatMessage.triggerChatMessage(firebotChatMessage);
+        twitchEventsHandler.chat.triggerChatMessage(firebotChatMessage);
         if (firebotChatMessage.isFirstChat) {
-            twitchEventsHandler.chatMessage.triggerFirstTimeChat(firebotChatMessage);
+            twitchEventsHandler.chat.triggerFirstTimeChat(firebotChatMessage);
         }
 
         twitchEventsHandler.viewerArrived.triggerViewerArrived(
@@ -147,10 +147,6 @@ exports.setupChatListeners = (streamerChatClient, botChatClient) => {
             messageText,
             firebotChatMessage
         );
-    });
-
-    streamerChatClient.onMessageRemove((_channel, messageId) => {
-        frontendCommunicator.send("twitch:chat:message:deleted", messageId);
     });
 
     streamerChatClient.onResub(async (_channel, _user, subInfo, msg) => {
@@ -213,15 +209,6 @@ exports.setupChatListeners = (streamerChatClient, botChatClient) => {
             subInfo.displayName,
             subInfo.userId,
             subInfo.gifterDisplayName,
-            subInfo.plan
-        );
-    });
-
-    streamerChatClient.onPrimePaidUpgrade((_channel, _user, subInfo, msg) => {
-        twitchEventsHandler.sub.triggerPrimeUpgrade(
-            msg.userInfo.userName,
-            subInfo.displayName,
-            subInfo.userId,
             subInfo.plan
         );
     });

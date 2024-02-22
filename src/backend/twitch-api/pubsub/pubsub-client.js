@@ -67,32 +67,6 @@ async function createClient() {
     try {
         const twitchEventsHandler = require('../../events/twitch-events');
 
-        const bitsBadgeUnlockListener = pubSubClient.onBitsBadgeUnlock(streamer.userId, (message) => {
-            twitchEventsHandler.cheer.triggerBitsBadgeUnlock(
-                message.userName ?? "An Anonymous Cheerer",
-                message.message ?? "",
-                message.badgeTier
-            );
-        });
-        listeners.push(bitsBadgeUnlockListener);
-
-        const subsListener = pubSubClient.onSubscription(streamer.userId, (subInfo) => {
-            if (!subInfo.isGift) {
-                twitchEventsHandler.sub.triggerSub(
-                    subInfo.userName,
-                    subInfo.userId,
-                    subInfo.userDisplayName,
-                    subInfo.subPlan,
-                    subInfo.cumulativeMonths || 1,
-                    subInfo.message.message ?? "",
-                    subInfo.streakMonths || 1,
-                    subInfo.subPlan === "Prime",
-                    subInfo.isResub
-                );
-            }
-        });
-        listeners.push(subsListener);
-
         const autoModListener = pubSubClient.onAutoModQueue(streamer.userId, streamer.userId, async (message) => {
             if (message.status === "PENDING") {
                 const chatHelpers = require("../../chat/chat-helpers");
@@ -126,7 +100,7 @@ async function createClient() {
                 default:
                     switch (message.action) {
                         case "clear":
-                            frontendCommunicator.send("twitch:chat:clear-feed", message.userName);
+                            twitchEventsHandler.chat.triggerChatCleared(message.userName, null, null);
                             break;
                         case "emoteonly":
                         case "emoteonlyoff":
@@ -138,7 +112,7 @@ async function createClient() {
                         case "slowoff":
                         case "r9kbeta": // Unique Chat
                         case "r9kbetaoff":
-                            twitchEventsHandler.chatModeChanged.triggerChatModeChanged(
+                            twitchEventsHandler.chat.triggerChatModeChanged(
                                 message.action,
                                 message.action.includes("off") ? "disabled" : "enabled",
                                 message.userName,

@@ -2,8 +2,7 @@
 
 exports.announcement = require('./twitch-events/announcement');
 exports.charity = require('./twitch-events/charity');
-exports.chatMessage = require('./twitch-events/chat-message');
-exports.chatModeChanged = require('./twitch-events/chat-mode-changed');
+exports.chat = require('./twitch-events/chat');
 exports.cheer = require('./twitch-events/cheer');
 exports.follow = require('./twitch-events/follow');
 exports.giftSub = require('./twitch-events/gift-sub');
